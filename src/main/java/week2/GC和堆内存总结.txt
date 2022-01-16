@@ -1,0 +1,77 @@
+新生代垃圾收集器
+1：串行收集器（Serial）
+   主要应用于client模式或单核服务器下，简单高效，同时也拥有复制算法的缺点。
+
+2：ParNew
+   相当于是Serial收集器的多线程版本，是并行收集器的一种，一般与并发收集器（CMS）。
+
+3：并行清除收集器（Parallel Scavenge）
+   由于与吞吐量关系密切，也称为吞吐量收集器（Throughput Collector）。
+   使用以下参数可以做一些性能调优：
+
+-XX:MaxGCPauseMillis：控制最大的垃圾收集器停顿时间（尽力）
+-XX:GCTimeRatio：设置吞吐量的大小，取值0~100，系统花费不超过1/(1+n)的时间用于垃圾收集。
+除此之外，并行清除收集器还提供了自适应GC策略，即-XX:+UseAdptiveSizePlicy。打开该参数后，无需手动设置新生代的大小、Eden、Survivor区的比例（-XX:SurvivorRatio）等。虚拟机会自动根据系统的运行状况收集性能监控，动态调整这些参数，从而达到最优的停顿时间以及最高的吞吐量。
+
+老年代收集器
+1：老年串行收集器（Serial Old）
+  老年代区域的串行收集器，可与Serial、ParNew、Parallel Scavenge等新生代区域的收集器配合使用，同时当CMS收集器出现故障时可作为后备。
+
+2：Parallel Old
+  相当于Parallel Scavenge老年代的收集器，只能与Parallel Scavenge配合使用。
+
+3：并发标记收集器（Concurrent Mark Sweep）
+  使用标记清除算法（同时拥有该算法的缺点），该回收器是针对老年代垃圾回收的，通过参数-XX:+UseConcMarkSweepGC进行设置。主要应用与停顿时间短、响应速度快的场景（如Web服务器）。
+  其实CMS收集器很复杂，大概需要经历以下几种步骤：
+
+  1）初始标记
+  2) 并发标记
+  3) 并发预清理（该步骤不一定执行）
+  4) 并发可中止的预清理阶段（该步骤不一定执行）
+  5) 重新标记
+  6) 并发清除
+  7) 并发重置
+
+新老代收集器
+1：G1（Garbage First ）垃圾收集器
+在JDK 7中加入的全新垃圾收集器，在JDK 9中使用G1垃圾收集器替代CMS垃圾收集器，它既可以使用在新生代，也可以使用在老年代。相比与 CMS 收集器，G1 收 集器两个最突出的改进是：
+
+基于标记压缩/整理算法，不产生内存碎片。
+可以非常精确控制停顿时间，在不牺牲吞吐量前提下，实现低停顿垃圾回收。
+G1中提供了三种垃圾回收模式，Young GC、Mixed GC、Full GC，在不同的条件下被触发：
+
+Young GC：采用所有Eden Region都满了的时候触发。即Eden里面的对象会转移到Survivor Region中，原先Survivor Region中的对象转移到新的Survivor Region中，或者晋升到Old Region中，那么空闲的Eden Region等待下次使用。
+Mixed GC：回收新生代以及老年代地一部分。其回收方式类似CMS，但其采用复制算法不会产生内存碎片。该模式最能提现G1的设计模式。
+Full GC：复制对象内存不够，或者无法分配足够的内存（比如大对象的连续空间）时触发，在该模式下使用Serial Old收集器。因此尽量避免此模式出现：
+增大预留内存（增大-XX:G1ReservePercent，默认堆的10%）
+更早地回收垃圾（减少-XX:InitiatingHeapOccupancyPercent，老年代达到该值就触发Mixed GC，默认45%）
+增加并发阶段使用地线程数（增大-XX:ConcGCThreads）
+适用于内存比较大（6GB以上）、替换CMS垃圾收集器场景，基于此可以考虑在JDK 8版本中使用，而在JDK 9开始已经使用G1了。
+
+堆内存
+1：JDK7
+   在这个版本中永久代与新生代、老年代逻辑上是分开的，但实际内存上是连在一起的。
+
+2：JDK8
+   由2部分组成，年轻代和年老代。
+   JDK8中Prem区，由Metaspace（元数据空间）进行了替换
+
+3：永久代设置（Java8以前）
+
+   永久代（PermGen） 使用量和JVM加载到内存中的 class 大小及数量有关。出现OOM错误的原因是加载到内存中的 class 数量太多或体积太大。以下两个参数与永久代设置有关：
+
+   -XX:PermSize=512m：设置永久代初始大小为512MB。
+   -XX:MaxPermSize=512m：设置永久代最大大小为512MB。
+
+4：元空间设置（Java8及以后）
+
+   JDK1.8以后出现了元空间，作用和永久代类似。元空间的大小用以下参数设置：
+
+   -XX:MetaspaceSize=512m
+   -XX:MaxMetaspaceSize=512m
+   将元空间大小的初始值和最大值设置为 512MB。只要不超过，就不会出现OOM。
+
+   栈区设置
+
+   -Xss：设置栈的大小，也就是每个线程可使用的内存大小。一般默认为512K。
+   栈的设置参数一般很少用到。
