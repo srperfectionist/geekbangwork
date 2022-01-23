@@ -16,6 +16,12 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
+import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
+import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
@@ -47,6 +53,9 @@ public class HttpClientUtils {
     /** Http客户端对象 */
     private static CloseableHttpClient httpClient = null;
 
+    /** Http客户端对象 */
+    private static CloseableHttpAsyncClient httpClientAsync = null;
+
     /** Connection配置对象 */
     private static ConnectionConfig connectionConfig = null;
 
@@ -67,33 +76,82 @@ public class HttpClientUtils {
      * 全局对象初始化
      *
      */
-    private static void init(){
-        // 创建Connection配置对象
-        connectionConfig = ConnectionConfig.custom()
-                .setMalformedInputAction(CodingErrorAction.IGNORE)
-                .setUnmappableInputAction(CodingErrorAction.IGNORE)
-                .setCharset(Consts.UTF_8).build();
+    private static void init() {
+        try{
+            // 创建Connection配置对象
+            connectionConfig = ConnectionConfig.custom()
+                    .setMalformedInputAction(CodingErrorAction.IGNORE)
+                    .setUnmappableInputAction(CodingErrorAction.IGNORE)
+                    .setCharset(Consts.UTF_8).build();
 
-        // 创建Request配置对象
-        requestConfig = RequestConfig.custom()
-                .setConnectionRequestTimeout(CONNECTION_REQUEST_TIMEOUT)
-                .setConnectTimeout(CONNECTION_TIMEOUT)
-                .setSocketTimeout(SOCKET_TIMEOUT)
-                .build();
+            // 创建Request配置对象
+            requestConfig = RequestConfig.custom()
+                    .setConnectionRequestTimeout(CONNECTION_REQUEST_TIMEOUT)
+                    .setConnectTimeout(CONNECTION_TIMEOUT)
+                    .setSocketTimeout(SOCKET_TIMEOUT)
+                    .build();
 
-        // 创建Cookie存储对象（服务端返回的Cookie保存在CookieStore中，下次再访问时才会将CookieStore中的Cookie发送给服务端）
-        cookieStore = new BasicCookieStore();
+            // 创建Cookie存储对象（服务端返回的Cookie保存在CookieStore中，下次再访问时才会将CookieStore中的Cookie发送给服务端）
+            cookieStore = new BasicCookieStore();
 
-        // 创建HttpClient对象
-        httpClient = HttpClients.custom()
-                .setDefaultConnectionConfig(connectionConfig)
-                .setDefaultSocketConfig(socketConfig)
-                .setDefaultRequestConfig(requestConfig)
-                .setDefaultCookieStore(cookieStore)
-                //.setUserAgent(USER_AGENT)
-                .setMaxConnTotal(MAX_CONN_TOTAL)
-                .setMaxConnPerRoute(MAX_CONN_PER_ROUTE)
-                .build();
+            // 创建HttpClient对象
+            httpClient = HttpClients.custom()
+                    .setDefaultConnectionConfig(connectionConfig)
+                    .setDefaultSocketConfig(socketConfig)
+                    .setDefaultRequestConfig(requestConfig)
+                    .setDefaultCookieStore(cookieStore)
+                    //.setUserAgent(USER_AGENT)
+                    .setMaxConnTotal(MAX_CONN_TOTAL)
+                    .setMaxConnPerRoute(MAX_CONN_PER_ROUTE)
+                    .build();
+
+            // 异步
+
+            //配置io线程
+            IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
+                                                             .setIoThreadCount(Runtime.getRuntime().availableProcessors())
+                                                             .setSoKeepAlive(true)
+                                                             .setConnectTimeout(1000)
+                                                             .setSoTimeout(1000)
+                                                             .setRcvBufSize(32 * 1024)
+                                                             .build();
+
+            //设置连接池大小
+            ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor(ioReactorConfig);
+
+            PoolingNHttpClientConnectionManager connManager = new PoolingNHttpClientConnectionManager(ioReactor);
+            //最大连接数设置1
+            connManager.setMaxTotal(5);
+            //per route最大连接数设置
+            connManager.setDefaultMaxPerRoute(5);
+
+            httpClientAsync = HttpAsyncClients.custom()
+                    .setConnectionManager(connManager)
+                    .setDefaultRequestConfig(requestConfig)
+                    .build();
+
+        }catch (Exception e){
+            // TODO 采用log方式
+            System.out.println("HttpClientUtils init is error");
+        }
+    }
+
+    /**
+     * 获得HttpClient对象
+     *
+     * @return
+     */
+    public static CloseableHttpClient getHttpClient(){
+        return httpClient;
+    }
+
+    /**
+     * 获得HttpClient对象 异步
+     *
+     * @return
+     */
+    public static CloseableHttpAsyncClient getHttpClientAsync(){
+        return httpClientAsync;
     }
 
     /**
