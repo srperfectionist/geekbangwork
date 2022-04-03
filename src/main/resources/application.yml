@@ -16,6 +16,22 @@ server:
 spring:
   profiles:
     active: dev
+  redis:                          # redis集群配置
+  password: 123456
+  cluster:
+    nodes: 172.16.57.140:6379,172.16.57.141:6379,172.16.57.142:6379,172.16.57.143:6379,172.16.57.144:6379,172.16.57.145:6379
+
+  # redis 单机单实力
+  # database: 1
+  # host: 172.16.57.137
+  # port: 6379
+  # password: 123456
+  # redis 哨兵模式
+  # database: 1
+  # password: 123456
+  # sentinel:
+  #   master: mymaster
+  #   nodes: 172.16.57.137:26379,172.16.57.138:26379,172.16.57.139:26379
 
 ############################################################
 #
@@ -25,17 +41,6 @@ spring:
 mybatis:
   type-aliases-package: com.sr.pojo          # 所有POJO类所在包路径
   mapper-locations: classpath:mapper/*.xml   # mapper映射文件
-
-############################################################
-#
-# mybatis mapper 配置
-#
-############################################################
-# 通用 Mapper 配置
-mapper:
-  mappers: com.sr.my.mapper.MyMapper
-  not-empty: false  # 在进行数据库操作的的时候，判断表达式 username != null, 是否追加 username != ''
-  identity: MYSQL
 
 student:
   id: 1
