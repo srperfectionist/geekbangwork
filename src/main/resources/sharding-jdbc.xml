@@ -76,7 +76,7 @@ http://shardingsphere.apache.org/schema/shardingsphere/sharding ">
     <sharding:inline-strategy id="databaseStrategy" sharding-column="user_id"
                               algorithm-expression="ms$->{user_id % 2}"/>
 
-    <bean id="myShard" class="week7.sharding.MySharding"/>
+    <bean id="myShard" class="week_7.sharding.MySharding"/>
 
     <sharding:standard-strategy id="standard" sharding-column="order_id" precise-algorithm-ref="myShard"/>
 
